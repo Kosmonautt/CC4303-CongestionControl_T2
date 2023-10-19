@@ -29,11 +29,6 @@ def ssthresh_test(congestion_controler, MSS):
         for j in range(congestion_controler.get_MSS_in_cwnd()):
             congestion_controler.event_ack_received()
 
-    print("1", congestion_controler.is_state_congestion_avoidance())
-    print("2", congestion_controler.get_cwnd() == 5*MSS)
-    print("3", congestion_controler.get_MSS_in_cwnd() == 5)
-
-
     if congestion_controler.is_state_congestion_avoidance() and congestion_controler.get_cwnd() == 5*MSS  \
             and congestion_controler.get_MSS_in_cwnd() == 5: print("ssthresh test passed")
     else: print("ssthresh test failed")
@@ -52,7 +47,7 @@ def congestion_control_object_test(MSS):
     ack_test(congestion_controler, MSS)
     timeout_test(congestion_controler, MSS)
     ssthresh_test(congestion_controler, MSS)
-    # timeout_in_congestion_avoidance_test(congestion_controler, MSS)
+    timeout_in_congestion_avoidance_test(congestion_controler, MSS)
 
 MSS = 7
 congestion_control_object_test(MSS)
