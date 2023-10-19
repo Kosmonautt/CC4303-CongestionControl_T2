@@ -51,10 +51,6 @@ class CongestionControl:
         elif(self.is_state_congestion_avoidance()):
             # se aunmenta la cwnd en MSS/cwnd
             self.cwnd += (1/self.get_MSS_in_cwnd())*self.get_MSS()
-
-            if(self.get_cwnd() < self.get_MSS()):
-                self.cwnd = self.MSS
-
         
     # función que se encarga de los cambios asociados a recepción de un timeout
     def event_timeout(self):
