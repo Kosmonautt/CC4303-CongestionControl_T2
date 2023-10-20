@@ -55,9 +55,20 @@ class SocketTCP:
     def recv_pure(self, buff_size):
         return self.socketUDP.recvfrom(buff_size)
     
-    # función que recibe un mensaje codificado y lo envía por completo a un destinatario, lo envía en pedazos
-    # de 16 bytes
-    def send(self, message):
+    # 
+    def send(self, message, mode ="stop_and_wait"):
+        if mode == "stop_and_wait":
+            self.send_using_stop_and_wait(message)
+
+    # 
+    def recv(self, buff_size, mode ="stop_and_wait"):
+        if mode == "stop_and_wait":
+            self.recv_using_stop_and_wait(buff_size)
+
+
+    # función que envía un mensaje codificado y lo envía por completo a un destinatario, lo envía en pedazos
+    # de 16 bytes, usa stop and wait
+    def send_using_stop_and_wait(self, message):
         # se consigue el largo del mensaje total codificado
         len_mssg = len(message)
 
@@ -147,8 +158,8 @@ class SocketTCP:
             except TimeoutError:
                 self.debug_print("send, Timeout")
     
-    # función que recibe un mensaje con un tamaño de buffer dado
-    def recv(self,buff_size):
+    # función que recibe un mensaje con un tamaño de buffer dado, usa stop and wait
+    def recv_using_stop_and_wait(self, buff_size):
         # aquí se guarda el mensaje que retorna
         ret_val = ""
         # tamaño del buffer del socketUDP, headers+data
@@ -258,6 +269,38 @@ class SocketTCP:
 
         # se retorna el mensaje final (en bytes)
         return ret_val.encode()
+
+    # función que envía un mensaje codificado y lo envía por completo a un destinatario, lo envía en pedazos
+    # de 16 bytes, usa go back n
+    def send_using_go_back_n(self, message):
+        pass
+
+    # función que recibe un mensaje con un tamaño de buffer dado, usa go back n
+    def recv_using_go_back_n(self, buff_size):
+        pass
+
+    # función que divide un mensaje (en bytes) en pedazos de size bytes en una lista
+    def chop_message(self, message, size):
+        # largo del mensaje
+        len_mssg = len(message)
+        # donde empieza el indice
+        index = 0
+        # lista donde se guardarán los trozos de mensaje
+        ret_list = []
+
+        # mentras el índice es menor a el largo del mensaje
+        while index < len_mssg:
+            # mínimo entre el largo del mensaje y el byte final de cada trozo
+            min_cut = min(index+size, len_mssg)
+            # se consigue el trozo
+            slice = message[index:min_cut]
+            # se agrega a la lista
+            ret_list.append(slice)
+            # se aumenta el indice
+            index = min_cut
+
+        # se retorna la lista
+        return ret_list
 
 
 
