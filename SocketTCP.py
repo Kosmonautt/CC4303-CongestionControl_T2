@@ -57,21 +57,21 @@ class SocketTCP:
     def recv_pure(self, buff_size):
         return self.socketUDP.recvfrom(buff_size)
     
-    # 
-    def send(self, message_):
-        # if mode == "stop_and_wait":
-        #     self.send_using_stop_and_wait(message)
-        # elif mode == "go_back_n":
-        #     self.send_using_go_back_n(message)
-        self.send_using_stop_and_wait(message_)
-
-    # 
-    def recv(self, buff_size_):
-        # if mode == "stop_and_wait":
-        #     self.recv_using_stop_and_wait(buff_size)
-        # elif mode == "go_back_n":
-        #     self.recv_using_go_back_n(buff_size)
-        self.recv_using_stop_and_wait(buff_size_)
+    def send(self, message, mode="stop_and_wait"):
+        if mode == "stop_and_wait":
+            self.send_using_stop_and_wait(message)
+        elif mode == "go_back_n":
+            self.send_using_go_back_n(message)
+        else:
+            raise NameError
+    
+    def recv(self, buff_size, mode="stop_and_wait"):
+        if mode == "stop_and_wait":
+            return self.recv_using_stop_and_wait(buff_size)
+        elif mode == "go_back_n":
+            return self.recv_using_go_back_n(buff_size)
+        else:
+            raise NameError
 
 
     # función que envía un mensaje codificado y lo envía por completo a un destinatario, lo envía en pedazos
@@ -291,6 +291,7 @@ class SocketTCP:
         # se crea la ventana con los parámetros aporpiados
         data_to_send = swcc.SlidingWindowCC(self.window_size, [len_mssg]+data_list, initial_seq)
 
+        print(data_to_send)
 
         print("client", self.nSec)
 
@@ -310,10 +311,10 @@ class SocketTCP:
             # se consigue su data y su nSec (dependiendo de su posición de segmento)
             data_i = data_to_send.get_data(i)
             sec_i = self.nSec
-            # se aumenta "ciclicamente" el nSec  
-            self.nSec = self.plus_1_cyclic(initial_seq, self.nSec, self.window_size)
             # si es que no se ha acabado la lista
             if(data_i != None):
+                # se aumenta "ciclicamente" el nSec  
+                self.nSec = self.plus_1_cyclic(initial_seq, self.nSec, self.window_size)
                 # se crea un mensaje
                 mssg_headers_i = self.wrap_data_as_data_segment(data_i, sec_i)
                 # se agrega a la lista  (en forma de bytes)
@@ -374,6 +375,7 @@ class SocketTCP:
 
                     # si es que la lista de mensaje codificados está vacía y new data es None, entonces ya se envió todo el mensaje
                     if(len(list_mssgs) == 0 and (new_data == None)):
+                        print("send finalizado")
                         return
                     
                     # si es que el mensaje no es None
@@ -387,7 +389,7 @@ class SocketTCP:
                         # se agrega a la lista  (en forma de bytes)
                         list_mssgs.append(new_mssg_headers.encode())
 
-                        # se envía este emnsaje
+                        # se envía este mensaje
                         self.send_pure(new_mssg_headers.encode())
 
                         # se reinicia el timer
@@ -418,9 +420,6 @@ class SocketTCP:
             initial_mssg_data = len_initial_mssg[4]
             # se consigue el largo del mensaje (en bytes) total
             total_lenght = int(initial_mssg_data)
-
-            #se actualiza el número de secuencia
-            self.nSec = int(initial_mssg_sec)
             
             # bytes que se deben leer
             self.bytes_left_to_read = total_lenght
@@ -466,7 +465,7 @@ class SocketTCP:
             # se consigue la data
             mssg_data = partial_message[4]
             
-            # se revisa si es segmento no es el correcto
+            # se revisa si el segmento no es el correcto
             if(int(mssg_nSec) != self.nSec):
                 # se ignora
                 pass
@@ -507,6 +506,8 @@ class SocketTCP:
                 new_cache = (cache.decode()) + (to_cache.decode())
                 # se agrega al caché
                 self.cache = new_cache.encode()
+
+        print("recv finalizado")
 
         # se retorna el mensaje final (en bytes)
         return ret_val.encode()   
@@ -582,6 +583,7 @@ class SocketTCP:
     # aumenta el número de secuencia "ciclicamente", aumenta desde Y+0 hasta Y+2N-1 y luego se "reinicia"
     @staticmethod
     def plus_1_cyclic(nSec_initial, nSec, window_size):
+        print("+1")
         # se aumenta el número
         nSec +=1
         # se revisa si se sale del rango
