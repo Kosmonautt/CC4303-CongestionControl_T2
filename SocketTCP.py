@@ -15,7 +15,7 @@ class SocketTCP:
         self.nSec = None
         # número de puerto al crear un socket de respuesta para el cliente
         self.new_socket_port = None
-        self.timeout = 0
+        self.timeout = 5
         self.buffSize = None
         # dice si queda por leer del mensaje con un recv
         self.bytes_left_to_read = 0
@@ -291,7 +291,6 @@ class SocketTCP:
         # se crea la ventana con los parámetros aporpiados
         data_to_send = swcc.SlidingWindowCC(self.window_size, [len_mssg]+data_list, initial_seq)
 
-        print(data_to_send)
 
         print("client", self.nSec)
 
@@ -322,6 +321,7 @@ class SocketTCP:
 
         # se envían todos los mensajes
         for m in list_mssgs:
+            print("CLIENTE ENVIANDO INICIAL", m)
             self.send_pure(m)
 
         # se pone a correr el timer 
@@ -338,6 +338,7 @@ class SocketTCP:
 
                     # se envían todos los mensajes en la lista
                     for m in list_mssgs:
+                        print("CLIENTE ENVIANDO TIMEOUT", m)
                         self.send_pure(m)
 
                     # se reinicia el timer
@@ -389,6 +390,7 @@ class SocketTCP:
                         # se agrega a la lista  (en forma de bytes)
                         list_mssgs.append(new_mssg_headers.encode())
 
+                        print("CLIENTE ENVIANDO FINAL", new_mssg_headers.encode())
                         # se envía este mensaje
                         self.send_pure(new_mssg_headers.encode())
 
