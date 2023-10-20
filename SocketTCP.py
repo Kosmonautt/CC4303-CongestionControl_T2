@@ -291,9 +291,6 @@ class SocketTCP:
         # se crea la ventana con los parámetros aporpiados
         data_to_send = swcc.SlidingWindowCC(self.window_size, [len_mssg]+data_list, initial_seq)
 
-
-        print("client", self.nSec)
-
         # se crea el timer unsando timerlist, con un tiempo tiemout
         timer_list = tm.TimerList(self.timeout, 1)
         # indice del timer
@@ -321,7 +318,6 @@ class SocketTCP:
 
         # se envían todos los mensajes
         for m in list_mssgs:
-            print("CLIENTE ENVIANDO INICIAL", m)
             self.send_pure(m)
 
         # se pone a correr el timer 
@@ -338,7 +334,6 @@ class SocketTCP:
 
                     # se envían todos los mensajes en la lista
                     for m in list_mssgs:
-                        print("CLIENTE ENVIANDO TIMEOUT", m)
                         self.send_pure(m)
 
                     # se reinicia el timer
@@ -376,7 +371,6 @@ class SocketTCP:
 
                     # si es que la lista de mensaje codificados está vacía y new data es None, entonces ya se envió todo el mensaje
                     if(len(list_mssgs) == 0 and (new_data == None)):
-                        print("send finalizado")
                         return
                     
                     # si es que el mensaje no es None
@@ -390,7 +384,6 @@ class SocketTCP:
                         # se agrega a la lista  (en forma de bytes)
                         list_mssgs.append(new_mssg_headers.encode())
 
-                        print("CLIENTE ENVIANDO FINAL", new_mssg_headers.encode())
                         # se envía este mensaje
                         self.send_pure(new_mssg_headers.encode())
 
@@ -406,9 +399,6 @@ class SocketTCP:
         buff_size_UDP = 48
         # se consigue el número de secuencia inicial
         initial_seq = self.nSec
-
-        print("server", self.nSec)
-
 
         # si es que bytes_left no es 0, entonces no se busca el largo de nuevo
         if(self.bytes_left_to_read == 0):
@@ -509,7 +499,6 @@ class SocketTCP:
                 # se agrega al caché
                 self.cache = new_cache.encode()
 
-        print("recv finalizado")
 
         # se retorna el mensaje final (en bytes)
         return ret_val.encode()   
@@ -568,12 +557,6 @@ class SocketTCP:
         # nSec
         bool_nSec = message_struct[3] == str(sec)
 
-        # print("SYN",bool_SYN)
-        # print("ACK",bool_ACK)
-        # print("FIN" ,bool_FIN)
-        # print("NSEC",bool_nSec)
-
-
         # se retorna la respuesta
         if(bool_SYN and bool_ACK and bool_FIN and bool_nSec):
 
@@ -585,7 +568,6 @@ class SocketTCP:
     # aumenta el número de secuencia "ciclicamente", aumenta desde Y+0 hasta Y+2N-1 y luego se "reinicia"
     @staticmethod
     def plus_1_cyclic(nSec_initial, nSec, window_size):
-        print("+1")
         # se aumenta el número
         nSec +=1
         # se revisa si se sale del rango
@@ -775,6 +757,9 @@ class SocketTCP:
         return response_SocketTCP, response_SocketTCP.dirOrigin
 
     def close(self):
+        # si es que el socket estaba en modo no bloqueante se bloquea
+        self.socketUDP.setblocking(True)
+
         # se crea el mensaje de fin para el receptor
         FIN_struct = ["0","0","1",str(self.nSec)]
         # se pasa a seg
@@ -792,7 +777,6 @@ class SocketTCP:
 
         while (not SYN_ACK_correctly) and timeouts < 4:
             try:
-                # se recibe la respuesta 
                 response = self.recv_pure(48)[0]
                 # se parsea a estcutura
                 response = self.parse_segment(response.decode())
@@ -845,6 +829,9 @@ class SocketTCP:
                 self.debug_print("close, Timeout")
 
     def recv_close(self):
+        # si es que el socket estaba en modo no bloqueante se bloquea
+        self.socketUDP.setblocking(True)
+
         # hasta que se reciba petición de cierre
         fin_recieved = False
 
