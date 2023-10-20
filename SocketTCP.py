@@ -1,6 +1,8 @@
 import random
 import socket
 
+# AÑADIR CASO BORDE
+
 buff_size = 48
 
 class SocketTCP:
@@ -19,6 +21,10 @@ class SocketTCP:
         self.cache = None
         # dice si el caché está vacío
         self.cache_empty = True
+        # debug
+        self.debug = False
+        # para el caso borde 
+        # por implementar
     
     # setters de los diferentes parámetros
     def set_socketUDP(self, socketUDP):
@@ -35,6 +41,11 @@ class SocketTCP:
         self.timeout = timeout
         # timeout en su socketUDP
         self.socketUDP.settimeout(timeout)
+
+    # si está activado el modo debug imprime el mensaje
+    def debug_print(self, place):
+        if(True):
+            print("Manejando perdidas en "+ place)
 
     # envía el mensaje (en bytes) dado a la dirección ya seteada con su número de secuencia
     def send_pure(self, mssg):
@@ -83,9 +94,12 @@ class SocketTCP:
                     length_sent = True
                     self.set_nSec(int(response[3]))
 
+                else:
+                    self.debug_print("send")
+
             # si es que falla
             except TimeoutError:
-                pass
+                self.debug_print("send, Timeout")
 
         # bytes del mensaje enviados
         bytes_sent = 0
@@ -125,10 +139,13 @@ class SocketTCP:
                     bytes_sent+=len_mssg_slice
                     # se actualiza el número de secuencia
                     self.nSec+= len_mssg_slice
+                
+                else:
+                    self.debug_print("send")
             
             # si es que no llega a tiempo el mensaje
             except TimeoutError:
-                pass
+                self.debug_print("send, Timeout")
     
     # función que recibe un mensaje con un tamaño de buffer dado
     def recv(self,buff_size):
@@ -323,6 +340,9 @@ class SocketTCP:
             if(bool_SYN and bool_ACK and bool_nSec):
                 # se sale del while
                 ack_corretly = True
+
+            else:
+                self.debug_print("connect")
         
         # se actualiza el número de secuencia
         self.nSec += 2
@@ -363,6 +383,9 @@ class SocketTCP:
             # si es que los valores recibidos son correctos
             if (bool_SYN and bool_ACK and (type(nsec_SYN) == int)):
                 syn_correctly = True
+
+            else:
+                self.debug_print("accept")
         
         # se crea el socket que se comunicará con el cliente
         response_SocketTCP = SocketTCP()
@@ -410,8 +433,10 @@ class SocketTCP:
                 assert address_ACK == response_SocketTCP.dirDestination
                 # se cambia la variable
                 ack_correctly = True
-            # si se resive el mensaje SYN de nuevo
+            # si se resibe el mensaje SYN de nuevo
             elif((not bool_ACK) and (not bool_SYN) and (response_SocketTCP.nSec -1 == nsec_ACK)):
+                # debug
+                self.debug_print("accept")
                 # se manda de nuevo el mensaje SYN_ACK (osea se contiúa el while)
                 continue
 
@@ -453,9 +478,13 @@ class SocketTCP:
                     # se sale del while
                     SYN_ACK_correctly = True
 
+                else:
+                    self.debug_print("close")
+
             # se aumenta timeout
             except TimeoutError:
                 timeouts += 1
+                self.debug_print("close, Timeout")
 
         # si hay más de 3 se asume termino de conexión
         if(timeouts > 3):
@@ -482,6 +511,7 @@ class SocketTCP:
             except TimeoutError:
                 # se aumenta tiemouts 
                 timeouts += 1
+                self.debug_print("close, Timeout")
 
     def recv_close(self):
         # hasta que se reciba petición de cierre
@@ -501,6 +531,9 @@ class SocketTCP:
             nSec_request = int(request[3])
             if(bool_ACK and bool_FIN):
                 fin_recieved = True
+            
+            else:
+                self.debug_print("recv_close")
 
         # se crea el mensaje de fin ack para el emisor 
         FIN_ACK_struct = ["0","1","1",str(nSec_request+1)]
@@ -532,10 +565,14 @@ class SocketTCP:
                 if(bool_ACK and bool_FIN):
                     # se termina la conexión
                     return
+                
+                else:
+                    self.debug_print("recv_close")
 
             # si hay tiemout
             except TimeoutError:
                 timeouts += 1
+                self.debug_print("recv_close, Timeout")
         
         # se termina la conexión 
         return
