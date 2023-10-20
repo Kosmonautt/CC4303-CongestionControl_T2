@@ -1,7 +1,5 @@
 import random
 import socket
-import slidingWindowCC as swcc
-import timerList as tm
 
 # AÑADIR CASO BORDE
 
@@ -25,8 +23,8 @@ class SocketTCP:
         self.cache_empty = True
         # debug
         self.debug = False
-        # dice de que largo serán las ventanas (3 por defecto)
-        self.window_size = 3
+        # para el caso borde 
+        # por implementar
     
     # setters de los diferentes parámetros
     def set_socketUDP(self, socketUDP):
@@ -57,26 +55,9 @@ class SocketTCP:
     def recv_pure(self, buff_size):
         return self.socketUDP.recvfrom(buff_size)
     
-    # 
-    def send(self, message_):
-        # if mode == "stop_and_wait":
-        #     self.send_using_stop_and_wait(message)
-        # elif mode == "go_back_n":
-        #     self.send_using_go_back_n(message)
-        self.send_using_stop_and_wait(message_)
-
-    # 
-    def recv(self, buff_size_):
-        # if mode == "stop_and_wait":
-        #     self.recv_using_stop_and_wait(buff_size)
-        # elif mode == "go_back_n":
-        #     self.recv_using_go_back_n(buff_size)
-        self.recv_using_stop_and_wait(buff_size_)
-
-
-    # función que envía un mensaje codificado y lo envía por completo a un destinatario, lo envía en pedazos
-    # de 16 bytes, usa stop and wait
-    def send_using_stop_and_wait(self, message):
+    # función que recibe un mensaje codificado y lo envía por completo a un destinatario, lo envía en pedazos
+    # de 16 bytes
+    def send(self, message):
         # se consigue el largo del mensaje total codificado
         len_mssg = len(message)
 
@@ -166,8 +147,8 @@ class SocketTCP:
             except TimeoutError:
                 self.debug_print("send, Timeout")
     
-    # función que recibe un mensaje con un tamaño de buffer dado, usa stop and wait
-    def recv_using_stop_and_wait(self, buff_size):
+    # función que recibe un mensaje con un tamaño de buffer dado
+    def recv(self,buff_size):
         # aquí se guarda el mensaje que retorna
         ret_val = ""
         # tamaño del buffer del socketUDP, headers+data
@@ -278,317 +259,9 @@ class SocketTCP:
         # se retorna el mensaje final (en bytes)
         return ret_val.encode()
 
-    # función que envía un mensaje codificado y lo envía por completo a un destinatario, lo envía en pedazos
-    # de 16 bytes, usa go back n
-    def send_using_go_back_n(self, message):
-        # se consigue el largo del mensaje total codificado
-        len_mssg = len(message)
-        # se divide el mensaje en trozos de 16 bytes
-        data_list = self.chop_message(message, 16)
-
-        # se consigue el número de secuencia inicial
-        initial_seq = self.nSec
-        # se crea la ventana con los parámetros aporpiados
-        data_to_send = swcc.SlidingWindowCC(self.window_size, [len_mssg]+data_list, initial_seq)
 
 
-        print("client", self.nSec)
 
-        # se crea el timer unsando timerlist, con un tiempo tiemout
-        timer_list = tm.TimerList(self.timeout, 1)
-        # indice del timer
-        t_index = 0
-
-        # se configura el socket como no bloqueante para poder usar el timeout
-        self.socketUDP.setblocking(False)
-
-        # se envían los window size primeros segmentos 
-        # lista que almacena los mensaje por enviar
-        list_mssgs = []
-        # para cada elemento en la window
-        for i in range(self.window_size):
-            # se consigue su data y su nSec (dependiendo de su posición de segmento)
-            data_i = data_to_send.get_data(i)
-            sec_i = self.nSec
-            # se aumenta "ciclicamente" el nSec  
-            self.nSec = self.plus_1_cyclic(initial_seq, self.nSec, self.window_size)
-            # si es que no se ha acabado la lista
-            if(data_i != None):
-                # se crea un mensaje
-                mssg_headers_i = self.wrap_data_as_data_segment(data_i, sec_i)
-                # se agrega a la lista  (en forma de bytes)
-                list_mssgs.append(mssg_headers_i.encode())
-
-        # se envían todos los mensajes
-        for m in list_mssgs:
-            self.send_pure(m)
-
-        # se pone a correr el timer 
-        timer_list.start_timer(t_index)
-
-        # ciclo donde se hace el protocolo go back N
-        while True:
-            try:
-                # se consiguen los timer que han hecho timeout (a los más uno)
-                timeouts = timer_list.get_timed_out_timers()
-                # si el único timer hizo timeout 
-                if(len(timeouts) > 0):
-                    # se reenvía toda la ventana 
-
-                    # se envían todos los mensajes en la lista
-                    for m in list_mssgs:
-                        self.send_pure(m)
-
-                    # se reinicia el timer
-                    timer_list.start_timer(t_index)
-
-                # si no hubo timeout se consigue el ack del receptor
-                answer, address = self.recv_pure(buff_size)
-
-            except BlockingIOError:
-                # como no es bloqueante, si se lanza este error es porque aún no llega y se sigue en el while
-                continue
-                
-            else:
-                # si no se lanza el error, entonces si ha llegado algo
-                # se consigue el primer elemento de la lista de mensajes
-                first_mssg = list_mssgs[0]
-                # se le hace decode()
-                first_mssg = first_mssg.decode()
-                # se le hace parse
-                first_mssg_struct = self.parse_segment(first_mssg)
-                # se consigue su número de secuencia (ciclico)
-                first_mssg_nSec = first_mssg_struct[3]
-
-                # se revisa que el mensaje recibido sea un ACK válido
-                if(self.is_valid_ack(first_mssg_nSec, answer)):
-                    # se detiene el timer
-                    timer_list.stop_timer(t_index)
-                    # se mueve la ventana
-                    data_to_send.move_window(1)
-                    # se saca el primer elemento de la lista de mensajes codificados
-                    list_mssgs.pop(0)
-
-                    # se consigue el siguiente elemento de la ventana (el último que acaba de entrar)
-                    new_data =  data_to_send.get_data(self.window_size - 1)
-
-                    # si es que la lista de mensaje codificados está vacía y new data es None, entonces ya se envió todo el mensaje
-                    if(len(list_mssgs) == 0 and (new_data == None)):
-                        return
-                    
-                    # si es que el mensaje no es None
-                    if(new_data != None):
-                        # se consigue su nSec (dependiendo de su posición de segmento)
-                        new_sec = self.nSec
-                        # se aumenta "ciclicamente" el nSec  
-                        self.nSec = self.plus_1_cyclic(initial_seq, self.nSec, self.window_size)
-                        # se crea un mensaje
-                        new_mssg_headers = self.wrap_data_as_data_segment(new_data, new_sec)
-                        # se agrega a la lista  (en forma de bytes)
-                        list_mssgs.append(new_mssg_headers.encode())
-
-                        # se envía este emnsaje
-                        self.send_pure(new_mssg_headers.encode())
-
-                        # se reinicia el timer
-                        timer_list.start_timer(t_index)
-
-
-    # función que recibe un mensaje con un tamaño de buffer dado, usa go back n
-    def recv_using_go_back_n(self, buff_size):
-        # aquí se guarda el mensaje que retorna
-        ret_val = ""
-        # tamaño del buffer del socketUDP, headers+data
-        buff_size_UDP = 48
-        # se consigue el número de secuencia inicial
-        initial_seq = self.nSec
-
-        print("server", self.nSec)
-
-
-        # si es que bytes_left no es 0, entonces no se busca el largo de nuevo
-        if(self.bytes_left_to_read == 0):
-            # se recibe el mensaje con el largo del mensaje total
-            len_initial_mssg = (self.recv_pure(buff_size_UDP))[0]
-            # se pasa a estructura
-            len_initial_mssg = self.parse_segment(len_initial_mssg.decode())
-            # se consigue el número de secuencia y la sección de datos
-            initial_mssg_sec = len_initial_mssg[3]
-            # se consigue la sección de datos
-            initial_mssg_data = len_initial_mssg[4]
-            # se consigue el largo del mensaje (en bytes) total
-            total_lenght = int(initial_mssg_data)
-
-            #se actualiza el número de secuencia
-            self.nSec = int(initial_mssg_sec)
-            
-            # bytes que se deben leer
-            self.bytes_left_to_read = total_lenght
-            # se crea el mensaje para enviar al emisor
-            # se pasa a seg
-            initial_confrm_seg = self.wrap_as_ACK_segment(self.nSec)
-            # se envía el mensaje al emisor
-            self.send_pure(initial_confrm_seg.encode())
-            # se aumenta el número de secuencia (cilcicamente)
-            self.nSec = self.plus_1_cyclic(initial_seq, self.nSec, self.window_size)
-
-        # antes de hacer un recv, se revisa el caché
-        if(not self.cache_empty):
-            # se debe revisar si el caché es más grande que el buff size
-            if(len(self.cache)>buff_size):
-                # solo se consigue lo necesario
-                ret_val_buff_size = (self.cache)[0:buff_size]
-                # el resto se queda en el caché
-                self.cache = self.cache[buff_size:len(self.cache)]
-                # se agrega al valor de retorno
-                ret_val += ret_val_buff_size.decode()
-            else:
-                # se agrega al valor de retorno
-                ret_val += (self.cache).decode()
-                # si es más peqeueño, se saca por completo
-                self.cache = None
-                self.cache_empty = True 
-
-
-        # cuántos bytes hay que recibir
-        bytes_to_recieve = min(self.bytes_left_to_read, buff_size)
-
-        # bytes recibidos
-        bytes_recieved = 0
-        # ahora se empieza a conseguir el mensaje
-        while bytes_recieved < bytes_to_recieve:
-            # se espera un segmento
-            partial_message = (self.recv_pure(buff_size_UDP))[0]
-            # se pasa a estructura
-            partial_message = self.parse_segment(partial_message.decode())
-            # se consigue el número de secuencia y la sección de datos
-            mssg_nSec = partial_message[3]
-            # se consigue la data
-            mssg_data = partial_message[4]
-            
-            # se revisa si es segmento no es el correcto
-            if(int(mssg_nSec) != self.nSec):
-                # se ignora
-                pass
-
-            # si no es incorrecto
-            else:
-                # se añade el segmento a el mensaje final
-                ret_val+= mssg_data
-                # se aumenta el número de bytes recibidos
-                bytes_recieved += len(mssg_data.encode())
-                # se debe enviar el ACK
-                ACK_seg = self.wrap_as_ACK_segment(self.nSec)
-                # se envía el mensaje al emisor
-                self.send_pure(ACK_seg.encode())
-                # se aumenta el número de secuencia (cilcicamente)
-                self.nSec = self.plus_1_cyclic(initial_seq, self.nSec, self.window_size)
-
-        # se restan los bytes recibidos de los bytes left to read
-        self.bytes_left_to_read -= bytes_recieved
-
-        # se revisa si el mensaje es más grande que el buffer
-        if (len(ret_val.encode()) > buff_size):
-            # si lo es, se guarda el resto en el caché
-            ret_val_buff_size = (ret_val.encode())[0:buff_size]
-            to_cache = (ret_val.encode())[buff_size:len(ret_val.encode())]
-            # para el caso de caché vacío 
-            if(self.cache_empty):
-                self.cache = to_cache
-                self.cache_empty = False
-                # se actualiza el resultdo que retorna 
-                ret_val = ret_val_buff_size.decode()
-
-            # caché no vacío
-            else:
-                # se consigue la primera parte del nuevo caché
-                cache = self.cache
-                # se les hace append a ambos
-                new_cache = (cache.decode()) + (to_cache.decode())
-                # se agrega al caché
-                self.cache = new_cache.encode()
-
-        # se retorna el mensaje final (en bytes)
-        return ret_val.encode()   
-
-    # función que divide un mensaje (en bytes) en pedazos de size bytes en una lista
-    def chop_message(self, message, size):
-        # largo del mensaje
-        len_mssg = len(message)
-        # donde empieza el indice
-        index = 0
-        # lista donde se guardarán los trozos de mensaje
-        ret_list = []
-
-        # mentras el índice es menor a el largo del mensaje
-        while index < len_mssg:
-            # mínimo entre el largo del mensaje y el byte final de cada trozo
-            min_cut = min(index+size, len_mssg)
-            # se consigue el trozo
-            slice = message[index:min_cut]
-            # se agrega a la lista
-            ret_list.append(slice)
-            # se aumenta el indice
-            index = min_cut
-
-        # se retorna la lista
-        return ret_list
-
-
-    # obtiene un mensaje (en bytes) y un número (Int no Str) de secuencia y lo transforma en mensaje de envío con headers
-    def wrap_data_as_data_segment(self, data, sec):
-        # se crea la estructura
-        struct = ["0","0","0", str(sec), (data.decode())]
-        # se pasa a segmento
-        return self.create_segment(struct)
-    
-    # crea un mnesaje ACK con un nSec asociado
-    def wrap_as_ACK_segment(self, sec):
-        # se crea la estructura
-        struct = ["0","1","0", str(sec)]
-        # se pasa a segmento
-        return self.create_segment(struct)
-
-    # recibe un mensaje ACK (en bytes) y un número de secuencia (int), verifica que este mensaje sea correcto
-    def is_valid_ack(self, sec, message):
-        # se pasa el mensaje a string
-        message = message.decode()
-        # se pasa a estrcutura
-        message_struct = self.parse_segment(message)
-        # verifica que el mensaje ACK sea correcto
-        # SYN
-        bool_SYN = message_struct[0] == "0"
-        # ACK
-        bool_ACK = message_struct[1] == "1"
-        # FIN
-        bool_FIN = message_struct[2] == "0"
-        # nSec
-        bool_nSec = message_struct[3] == str(sec)
-
-        # print("SYN",bool_SYN)
-        # print("ACK",bool_ACK)
-        # print("FIN" ,bool_FIN)
-        # print("NSEC",bool_nSec)
-
-
-        # se retorna la respuesta
-        if(bool_SYN and bool_ACK and bool_FIN and bool_nSec):
-
-            return True
-        else:            
-            return False
-
-    # recibe un número de secuencia inicial, un nsec y un largo de ventana, aumenta este número aporpiadamente    
-    # aumenta el número de secuencia "ciclicamente", aumenta desde Y+0 hasta Y+2N-1 y luego se "reinicia"
-    @staticmethod
-    def plus_1_cyclic(nSec_initial, nSec, window_size):
-        # se aumenta el número
-        nSec +=1
-        # se revisa si se sale del rango
-        if(nSec > (nSec_initial+(2*window_size - 1))):
-            nSec = nSec_initial
-        
-        return nSec
 
     # pasa segmento TCP a estructura
     @staticmethod
