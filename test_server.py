@@ -6,7 +6,7 @@ server_socketTCP.bind(address)
 connection_socketTCP, new_address = server_socketTCP.accept()
 
 # debug
-connection_socketTCP.debug = True
+#connection_socketTCP.debug = True
 
 # test 1
 buff_size = 16
@@ -15,7 +15,6 @@ print("Test 1 received:", full_message)
 if full_message == "Mensje de len=16".encode(): print("Test 1: Passed")
 else: print("Test 1: Failed")
 
-print("SEGUNDO")
 # test 2
 buff_size = 19
 full_message = connection_socketTCP.recv(buff_size, "go_back_n")
