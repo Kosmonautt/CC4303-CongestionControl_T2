@@ -24,7 +24,7 @@ partials_read = 0
 # se hace recv las veces dichas
 while partials_read < nRecieve:
     # se lee parte del mensaje
-    partial_mssg = connection_socketTCP.recv(buff_size)
+    partial_mssg = connection_socketTCP.recv(buff_size,"go_back_n")
     # se agrega al mensaje final
     full_message += partial_mssg.decode()
     # se aumenta el número de mensajes parciales leídos

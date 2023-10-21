@@ -24,7 +24,7 @@ mssg = mssg.encode()
 client_socket_TCP.connect(address)
 
 # se envía el mensaje
-client_socket_TCP.send(mssg)
+client_socket_TCP.send(mssg, "go_back_n")
 
 # se hace request de cierre
 client_socket_TCP.close()
