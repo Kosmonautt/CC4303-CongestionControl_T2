@@ -1,0 +1,17 @@
+Los tests se hacen en el siguiente orden, siempre primero el del server y después el cliente
+(NOTA: Cuando se usa netem el cliente se demora más en cerrar por los 3 tiemouts que hace)
+
+1.server
+2.cliente
+
+1.$ python3 new_server.py 16 1
+2.$ python3 new_client.py localhost 8000 mensajes_tests/largo_16.txt
+
+1.$ python3 new_server.py 19 1
+2.$ python3 new_client.py localhost 8000 mensajes_tests/largo_19.txt
+
+1.$ python3 new_server.py 14 2
+2.$ python3 new_client.py localhost 8000 mensajes_tests/largo_19.txt
+
+1.$ python3 new_server.py 14 4
+2.$ python3 new_client.py localhost 8000 mensajes_tests/laaaargo.txt
