@@ -6,7 +6,7 @@ client_socketTCP = SocketTCP.SocketTCP()
 client_socketTCP.connect(address)
 
 # debug
-#client_socketTCP.debug = True
+client_socketTCP.debug = True
 
 # test 1
 message = "Mensje de len=16".encode()

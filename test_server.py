@@ -6,7 +6,7 @@ server_socketTCP.bind(address)
 connection_socketTCP, new_address = server_socketTCP.accept()
 
 # debug
-# connection_socketTCP.debug = True
+connection_socketTCP.debug = True
 
 # test 1
 buff_size = 16

@@ -330,6 +330,8 @@ class SocketTCP:
                 timeouts = timer_list.get_timed_out_timers()
                 # si el único timer hizo timeout 
                 if(len(timeouts) > 0):
+                    # se imprime
+                    self.debug_print("send, Timeout")
                     # se reenvía toda la ventana 
 
                     # se envían todos los mensajes en la lista
@@ -343,6 +345,8 @@ class SocketTCP:
                 answer, address = self.recv_pure(buff_size)
 
             except BlockingIOError:
+                # se imprime error si hay modo debug
+                self.debug_print("send")
                 # como no es bloqueante, si se lanza este error es porque aún no llega y se sigue en el while
                 continue
                 
@@ -389,6 +393,9 @@ class SocketTCP:
 
                         # se reinicia el timer
                         timer_list.start_timer(t_index)
+
+                else:
+                    self.debug_print("send, ACK incorrecto")
 
 
     # función que recibe un mensaje con un tamaño de buffer dado, usa go back n
